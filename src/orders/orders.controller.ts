@@ -239,9 +239,128 @@ export class OrdersController {
     // Actualizar el estado del pedido
     return this.ordersService.updateOrderStatus(orderId, body.status, userId, 'store');
   }
+
+  @Get('delivery/available')
+  @ApiOperation({
+    summary: 'Obtener pedidos disponibles para entrega',
+    description: 'Obtiene los pedidos que están listos para ser entregados y no tienen repartidor asignado'
+  })
+  @ApiHeader({
+    name: 'x-user-id',
+    description: 'ID del repartidor',
+    required: true,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de pedidos disponibles obtenida exitosamente'
+  })
+  async getAvailableDeliveryOrders(
+    @Headers('x-user-id') deliveryId: string,
+    @Query() queryParams: QueryOrdersDto,
+  ) {
+    if (!deliveryId) {
+      throw new BadRequestException('Header x-user-id es requerido');
+    }
+    
+    const { orders, total, page, limit, totalPages } = await this.ordersService.findAvailableForDelivery(queryParams);
+    
+    return {
+      data: orders,
+      pagination: {
+        totalItems: total,
+        totalPages: totalPages,
+        currentPage: page,
+        itemsPerPage: limit
+      }
+    };
+  }
+
+  @Get('delivery/assigned')
+  @ApiOperation({
+    summary: 'Obtener pedidos asignados al repartidor',
+    description: 'Obtiene los pedidos que están asignados al repartidor actual'
+  })
+  @ApiHeader({
+    name: 'x-user-id',
+    description: 'ID del repartidor',
+    required: true,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de pedidos asignados obtenida exitosamente'
+  })
+  async getAssignedDeliveryOrders(
+    @Headers('x-user-id') deliveryId: string,
+    @Query() queryParams: QueryOrdersDto,
+  ) {
+    if (!deliveryId) {
+      throw new BadRequestException('Header x-user-id es requerido');
+    }
+    
+    const { orders, total, page, limit, totalPages } = await this.ordersService.findByDeliveryId(deliveryId, queryParams);
+    
+    return {
+      data: orders,
+      pagination: {
+        totalItems: total,
+        totalPages: totalPages,
+        currentPage: page,
+        itemsPerPage: limit
+      }
+    };
+  }
+
+  @Patch(':id/assign')
+  @ApiOperation({
+    summary: 'Asignar pedido a repartidor',
+    description: 'Asigna un pedido al repartidor actual'
+  })
+  @ApiHeader({
+    name: 'x-user-id',
+    description: 'ID del repartidor',
+    required: true,
+  })
+  @ApiParam({ name: 'id', description: 'ID del pedido' })
+  @ApiResponse({
+    status: 200,
+    description: 'Pedido asignado exitosamente'
+  })
+  async assignDeliveryOrder(
+    @Param('id') orderId: string,
+    @Headers('x-user-id') deliveryId: string,
+  ) {
+    if (!deliveryId) {
+      throw new BadRequestException('Header x-user-id es requerido');
+    }
+    
+    return this.ordersService.assignDelivery(orderId, deliveryId);
+  }
+
+  @Patch(':id/delivery-status')
+  @ApiOperation({
+    summary: 'Actualizar estado de entrega',
+    description: 'Actualiza el estado de un pedido asignado al repartidor'
+  })
+  @ApiHeader({
+    name: 'x-user-id',
+    description: 'ID del repartidor',
+    required: true,
+  })
+  @ApiParam({ name: 'id', description: 'ID del pedido' })
+  @ApiResponse({
+    status: 200,
+    description: 'Estado del pedido actualizado exitosamente'
+  })
+  async updateDeliveryStatus(
+    @Param('id') orderId: string,
+    @Headers('x-user-id') deliveryId: string,
+    @Body() body: { status: OrderStatus },
+  ) {
+    if (!deliveryId) {
+      throw new BadRequestException('Header x-user-id es requerido');
+    }
+    
+    return this.ordersService.updateOrderStatus(orderId, body.status, deliveryId, 'delivery');
+  }
 }
-
-
-
-
 

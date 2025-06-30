@@ -138,9 +138,60 @@ export class OrdersService {
     };
     return this.orderRepository.calculateTotalSpent(filter);
   }
+
+  async findAvailableForDelivery(queryParams: QueryOrdersDto) {
+    // Filtrar pedidos que están listos para entrega y no tienen repartidor asignado
+    const filters = {
+      status: OrderStatus.READY_FOR_PICKUP,
+      deliveryMethod: DeliveryMethod.DELIVERY,
+      deliveryId: { $exists: false }
+    };
+    
+    return this.orderRepository.findWithPagination(
+      filters,
+      queryParams.page || 1,
+      queryParams.limit || 10
+    );
+  }
+
+  async findByDeliveryId(deliveryId: string, queryParams: QueryOrdersDto) {
+    const filters = { deliveryId };
+    
+    if (queryParams.status) {
+      filters['status'] = queryParams.status;
+    }
+    
+    return this.orderRepository.findWithPagination(
+      filters,
+      queryParams.page || 1,
+      queryParams.limit || 10
+    );
+  }
+
+  async assignDelivery(orderId: string, deliveryId: string) {
+    const order = await this.orderRepository.findById(orderId);
+    
+    if (!order) {
+      throw new NotFoundException(`Pedido con ID ${orderId} no encontrado`);
+    }
+    
+    // Verificar que el pedido está en estado adecuado para asignación
+    if (order.status !== OrderStatus.READY_FOR_PICKUP) {
+      throw new BadRequestException(`El pedido debe estar en estado READY_FOR_PICKUP para ser asignado`);
+    }
+    
+    // Verificar que el pedido no tiene ya un repartidor asignado
+    if (order.deliveryId) {
+      throw new BadRequestException(`El pedido ya tiene un repartidor asignado`);
+    }
+    
+    // Asignar el repartidor y actualizar el estado
+    return this.orderRepository.update(orderId, { 
+      deliveryId,
+      status: OrderStatus.PICKED_UP 
+    });
+  }
 }
-
-
 
 
 
